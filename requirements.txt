@@ -5,3 +5,5 @@ wikipedia
 line-bot-sdk
 pandas==0.20.3
 googletrans
+beautifulsoup4
+google

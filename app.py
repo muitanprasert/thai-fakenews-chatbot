@@ -6,6 +6,7 @@ from flask import Flask, jsonify, render_template, request
 import json
 import numpy as np
 import requests
+from googlesearch import search
 
 from linebot.models import (
     MessageEvent, TextMessage, TextSendMessage,TemplateSendMessage,ImageSendMessage, StickerSendMessage, AudioSendMessage
@@ -78,18 +79,19 @@ def get_raw(url):
     return r.text
 
 def evaluate(msg):
-    words = msg[:300].split()
-    search_by = '+'.join(words)
-
-    raw = get_raw('https://www.antifakenewscenter.com/?s='+search_by)
-    entries = raw.split('<div class="col-lg-4 col-md-6 col-sm-12 -new h-zoom">')
-    if len(entries) < 2:
+    results = search(msg + " antifakenewscenter.com", tld='com', num=10, pause=2.0)
+    url = 0
+    for r in results:
+        if "www.antifakenewscenter.com" in r:
+            url = r
+            break
+    if url == 0:
         return "ไม่พบข่าวนี้ในฐานข้อมูล"
 
-    entry = entries[1]
-    if "#ข่าวปลอม" in entry:
+    entry = get_raw(url)
+    if "เป็นข้อมูลเท็จ" in entry:
         return "ข่าวนี้ได้รับการยืนยันแล้วว่าเป็นข่าวปลอม"
-    elif "#ข่าวบิดเบือน" in entry:
+    elif "เป็นข้อมูลบิดเบือน" in entry:
         return "ข่าวนี้ได้การยืนยันแล้วว่าเป็นข่าวบิดเบือน"
     return "ข่าวนี้ได้รับการยืนยันแล้วว่าเป็นความจริง"
 
