@@ -1,4 +1,4 @@
 Deploying:
 $ git add .
-$ git commit -am "make it better"
+$ git commit -am "commit message"
 $ git push heroku master

@@ -5,6 +5,7 @@
 from flask import Flask, jsonify, render_template, request
 import json
 import numpy as np
+import requests
 
 from linebot.models import (
     MessageEvent, TextMessage, TextSendMessage,TemplateSendMessage,ImageSendMessage, StickerSendMessage, AudioSendMessage
@@ -55,14 +56,14 @@ def event_handle(event):
         msgType = event["message"]["type"]
     except:
         print('error cannot get msgID, and msgType')
-        sk_id = np.random.randint(1,17)
-        replyObj = StickerSendMessage(package_id=str(1),sticker_id=str(sk_id))
-        line_bot_api.reply_message(rtoken, replyObj)
+        #sk_id = np.random.randint(1,17)
+        #replyObj = StickerSendMessage(package_id=str(1),sticker_id=str(sk_id))
+        #line_bot_api.reply_message(rtoken, replyObj)
         return ''
 
     if msgType == "text":
         msg = str(event["message"]["text"]) # incoming msg
-        response = "เนื้อหาข่าว: " + msg
+        response = evaluate(msg)
         replyObj = TextSendMessage(text=response)
         line_bot_api.reply_message(rtoken, replyObj)
 
@@ -71,6 +72,26 @@ def event_handle(event):
         replyObj = StickerSendMessage(package_id=str(1),sticker_id=str(sk_id))
         line_bot_api.reply_message(rtoken, replyObj)
     return ''
+
+def get_raw(url):
+    r = requests.get(url)
+    return r.text
+
+def evaluate(msg):
+    words = msg[:300].split()
+    search_by = '+'.join(words)
+
+    raw = get_raw('https://www.antifakenewscenter.com/?s='+search_by)
+    entries = raw.split('<div class="col-lg-4 col-md-6 col-sm-12 -new h-zoom">')
+    if len(entries) < 2:
+        return "ไม่พบข่าวนี้ในฐานข้อมูล"
+
+    entry = entries[1]
+    if "#ข่าวปลอม" in entry:
+        return "ข่าวนี้ได้รับการยืนยันแล้วว่าเป็นข่าวปลอม"
+    elif "#ข่าวบิดเบือน" in entry:
+        return "ข่าวนี้ได้การยืนยันแล้วว่าเป็นข่าวบิดเบือน"
+    return "ข่าวนี้ได้รับการยืนยันแล้วว่าเป็นความจริง"
 
 if __name__ == '__main__':
     app.run(debug=True)
