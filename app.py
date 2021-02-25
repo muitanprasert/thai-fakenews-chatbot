@@ -82,7 +82,7 @@ def evaluate(msg):
     results = search(msg + " antifakenewscenter.com", tld='com', num=10, pause=2.0)
     url = 0
     for r in results:
-        if "www.antifakenewscenter.com" in r:
+        if "antifakenewscenter.com" in r:
             url = r
             break
     if url == 0:
