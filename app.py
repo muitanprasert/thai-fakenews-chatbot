@@ -79,21 +79,29 @@ def get_raw(url):
     return r.text
 
 def evaluate(msg):
-    results = search(msg + " antifakenewscenter.com", tld='com', num=10, pause=2.0)
+    results = search(msg + " antifakenewscenter.com", tld='com', num=5, pause=2.0)
     url = 0
     for r in results:
-        if "antifakenewscenter.com" in r:
+        if "antifakenewscenter.com" in r and len(r) > 37:
             url = r
             break
     if url == 0:
-        return "ไม่พบข่าวนี้ในฐานข้อมูล"
+      return "ไม่พบข่าวนี้ในฐานข้อมูล"
 
-    entry = get_raw(url)
+    entry = get_raw(url).split('<!--/Header-->')[1]
+    index = entry.find("วันที่ ")
+    if index > -1:
+        date = entry[index:index+30].strip()
+    index = entry.find("หน่วยงานที่ตรวจสอบ ")
+    if index > -1:
+        chunk = entry[index:index+100]
+        verifier = chunk[20:chunk.find('</')].strip()
+
     if "เป็นข้อมูลเท็จ" in entry:
-        return "ข่าวนี้ได้รับการยืนยันแล้วว่าเป็นข่าวปลอม อ่านรายละเอียดได้ที่ "+url
+        return "ข่าวนี้ได้รับการยืนยันว่าเป็นข่าวปลอมเมื่อ" + date + " โดย " + verifier + "\nอ่านรายละเอียดได้ที่ " + url
     elif "เป็นข้อมูลบิดเบือน" in entry:
-        return "ข่าวนี้ได้การยืนยันแล้วว่าเป็นข่าวบิดเบือน อ่านรายละเอียดได้ที่ "+url
-    return "ข่าวนี้ได้รับการยืนยันแล้วว่าเป็นความจริง อ่านรายละเอียดได้ที่ "+url
+        return "ข่าวนี้ได้การยืนยันแล้วว่าเป็นข่าวบิดเบือนเมื่อ" + date + " โดย " + verifier + "\nอ่านรายละเอียดได้ที่ " + url
+    return "ข่าวนี้ได้รับการยืนยันแล้วว่าเป็นความจริงเมื่อ" + date + " โดย " + verifier + "\nอ่านรายละเอียดได้ที่ " + url
 
 if __name__ == '__main__':
     app.run(debug=True)
