@@ -93,20 +93,20 @@ def evaluate(msg):
     date = ""; verifier = ""
     index = entry.find("วันที่ ")
     if index > -1:
-        date = "เมื่อ " + entry[index:index+30].strip()
+        date = "เมื่อ" + entry[index:index+30].strip()
     index = entry.find("หน่วยงานที่ตรวจสอบ ")
     if index > -1:
         chunk = entry[index:index+100]
-        verifier = " โดย " + chunk[20:chunk.find('</')].strip()
+        verifier = " โดย" + chunk[20:chunk.find('</')].strip()
     
     # construct and return response message
     if verifier == "": # date exists in other pages, but verifier should only be in articles
         return "ไม่พบข่าวนี้ในฐานข้อมูล"
     if "เป็นข้อมูลเท็จ" in entry:
-        return "ข่าวนี้ได้รับการยืนยันว่าเป็นข่าวปลอมเมื่อ" + date + verifier + "\nอ่านรายละเอียดได้ที่ " + url
+        return "ข่าวนี้ได้รับการยืนยันว่าเป็นข่าวปลอม" + date + verifier + "\nอ่านรายละเอียดได้ที่ " + url
     if "เป็นข้อมูลบิดเบือน" in entry:
-        return "ข่าวนี้ได้การยืนยันแล้วว่าเป็นข่าวบิดเบือนเมื่อ" + date + verifier + "\nอ่านรายละเอียดได้ที่ " + url
-    return "ข่าวนี้ได้รับการยืนยันแล้วว่าเป็นความจริงเมื่อ" + date + verifier + "\nอ่านรายละเอียดได้ที่ " + url
+        return "ข่าวนี้ได้การยืนยันแล้วว่าเป็นข่าวบิดเบือน" + date + verifier + "\nอ่านรายละเอียดได้ที่ " + url
+    return "ข่าวนี้ได้รับการยืนยันแล้วว่าเป็นความจริง" + date + verifier + "\nอ่านรายละเอียดได้ที่ " + url
 
 if __name__ == '__main__':
     app.run(debug=True)
