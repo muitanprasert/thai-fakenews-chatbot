@@ -79,29 +79,34 @@ def get_raw(url):
     return r.text
 
 def evaluate(msg):
-    results = search(msg + " antifakenewscenter.com", tld='com', num=5, pause=2.0)
+    # retrieve search results from google
+    results = search(msg + " antifakenewscenter.com", tld='com', num=5, pause=0.5)
     url = 0
     for r in results:
-        if "antifakenewscenter.com" in r and len(r) > 37:
-            url = r
-            break
+        if "antifakenewscenter.com" in r:
+            url = r; break
     if url == 0:
-      return "ไม่พบข่าวนี้ในฐานข้อมูล"
+        return "ไม่พบข่าวนี้ในฐานข้อมูล"
 
+    # get date and verifying agency
     entry = get_raw(url).split('<!--/Header-->')[1]
+    date = ""; verifier = ""
     index = entry.find("วันที่ ")
     if index > -1:
-        date = entry[index:index+30].strip()
+        date = "เมื่อ " + entry[index:index+30].strip()
     index = entry.find("หน่วยงานที่ตรวจสอบ ")
     if index > -1:
         chunk = entry[index:index+100]
-        verifier = chunk[20:chunk.find('</')].strip()
-
+        verifier = " โดย " + chunk[20:chunk.find('</')].strip()
+    
+    # construct and return response message
+    if verifier == "": # date exists in other pages, but verifier should only be in articles
+        return "ไม่พบข่าวนี้ในฐานข้อมูล"
     if "เป็นข้อมูลเท็จ" in entry:
-        return "ข่าวนี้ได้รับการยืนยันว่าเป็นข่าวปลอมเมื่อ" + date + " โดย " + verifier + "\nอ่านรายละเอียดได้ที่ " + url
-    elif "เป็นข้อมูลบิดเบือน" in entry:
-        return "ข่าวนี้ได้การยืนยันแล้วว่าเป็นข่าวบิดเบือนเมื่อ" + date + " โดย " + verifier + "\nอ่านรายละเอียดได้ที่ " + url
-    return "ข่าวนี้ได้รับการยืนยันแล้วว่าเป็นความจริงเมื่อ" + date + " โดย " + verifier + "\nอ่านรายละเอียดได้ที่ " + url
+        return "ข่าวนี้ได้รับการยืนยันว่าเป็นข่าวปลอมเมื่อ" + date + verifier + "\nอ่านรายละเอียดได้ที่ " + url
+    if "เป็นข้อมูลบิดเบือน" in entry:
+        return "ข่าวนี้ได้การยืนยันแล้วว่าเป็นข่าวบิดเบือนเมื่อ" + date + verifier + "\nอ่านรายละเอียดได้ที่ " + url
+    return "ข่าวนี้ได้รับการยืนยันแล้วว่าเป็นความจริงเมื่อ" + date + verifier + "\nอ่านรายละเอียดได้ที่ " + url
 
 if __name__ == '__main__':
     app.run(debug=True)
