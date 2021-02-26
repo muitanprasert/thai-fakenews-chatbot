@@ -24,7 +24,7 @@ line_bot_api = LineBotApi(lineaccesstoken)
 ####################### new ########################
 @app.route('/')
 def index():
-    return "Hello World!"
+    return render_template('hello.html')
 
 
 @app.route('/webhook', methods=['POST'])
