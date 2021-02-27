@@ -7,6 +7,8 @@ import json
 import numpy as np
 import requests
 from googlesearch import search
+import re
+from urllib.parse import unquote
 
 from linebot.models import (
     MessageEvent, TextMessage, TextSendMessage,TemplateSendMessage,ImageSendMessage, StickerSendMessage, AudioSendMessage
@@ -74,10 +76,6 @@ def event_handle(event):
         line_bot_api.reply_message(rtoken, replyObj)
     return ''
 
-def get_raw(url):
-    r = requests.get(url)
-    return r.text
-
 def evaluate(msg):
     # retrieve search results from google
     results = search(msg + " antifakenewscenter.com", tld='com', num=5, pause=0.5)
@@ -88,25 +86,40 @@ def evaluate(msg):
     if url == 0:
         return "ไม่พบข่าวนี้ในฐานข้อมูล"
 
-    # get date and verifying agency
-    entry = get_raw(url).split('<!--/Header-->')[1]
+    # get title, date and verifying agency
+    entry = get_raw(url).split('<div class="title-post-news">\n')
+    if len(entry) < 2:
+        return "ไม่พบข่าวนี้ในฐานข้อมูล"
+    entry = entry[1]
+    title = removetags(entry.split("\n")[0]).strip()
     date = ""; verifier = ""
     index = entry.find("วันที่ ")
     if index > -1:
-        date = "เมื่อ" + entry[index:index+30].strip()
+        date = "เมื่อ " + entry[index:index+30].strip()
     index = entry.find("หน่วยงานที่ตรวจสอบ ")
     if index > -1:
         chunk = entry[index:index+100]
-        verifier = " โดย" + chunk[20:chunk.find('</')].strip()
+        verifier = " โดย " + chunk[20:chunk.find('</')].strip()
     
     # construct and return response message
     if verifier == "": # date exists in other pages, but verifier should only be in articles
         return "ไม่พบข่าวนี้ในฐานข้อมูล"
+    url = unquote(url)
+    detail = date + verifier + "\n\nอ้างอิงจาก \"" + title + "\" อ่านรายละเอียดได้ที่ " + url
     if "เป็นข้อมูลเท็จ" in entry:
-        return "ข่าวนี้ได้รับการยืนยันว่าเป็นข่าวปลอม" + date + verifier + "\nอ่านรายละเอียดได้ที่ " + url
+        return "ข่าวนี้ได้รับการยืนยันว่าเป็นข่าวปลอม" + detail
     if "เป็นข้อมูลบิดเบือน" in entry:
-        return "ข่าวนี้ได้การยืนยันแล้วว่าเป็นข่าวบิดเบือน" + date + verifier + "\nอ่านรายละเอียดได้ที่ " + url
-    return "ข่าวนี้ได้รับการยืนยันแล้วว่าเป็นความจริง" + date + verifier + "\nอ่านรายละเอียดได้ที่ " + url
+        return "ข่าวนี้ได้การยืนยันแล้วว่าเป็นข่าวบิดเบือน" + detail
+    return "ข่าวนี้ได้รับการยืนยันแล้วว่าเป็นความจริง" + detail
+
+def get_raw(url):
+    r = requests.get(url)
+    return r.text
+
+def removetags(raw_html):
+    cleanr = cleanr = re.compile('<.*?>|&([a-z0-9]+|#[0-9]{1,6}|#x[0-9a-f]{1,6});')
+    cleantext = re.sub(cleanr, '', raw_html)
+    return cleantext
 
 if __name__ == '__main__':
     app.run(debug=True)
