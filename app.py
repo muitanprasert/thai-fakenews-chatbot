@@ -87,11 +87,13 @@ def evaluate(msg):
         return "ไม่พบข่าวนี้ในฐานข้อมูล"
 
     # get title, date and verifying agency
-    entry = get_raw(url).split('<div class="title-post-news">\n')
-    if len(entry) < 2:
+    entry = get_raw(url)
+    from_index = entry.find('<div class="title-post-news">')
+    to_index = entry.find('<div class="tag-post-news">')
+    if from_index == -1 or to_index == -1:
         return "ไม่พบข่าวนี้ในฐานข้อมูล"
-    entry = entry[1]
-    title = removetags(entry.split("\n")[0]).strip()
+    entry = entry[from_index:to_index]
+    title = removetags(entry.split("\n")[1]).strip()
     date = ""; verifier = ""
     index = entry.find("วันที่ ")
     if index > -1:
@@ -102,7 +104,7 @@ def evaluate(msg):
         verifier = " โดย " + chunk[20:chunk.find('</')].strip()
     
     # construct and return response message
-    if verifier == "": # date exists in other pages, but verifier should only be in articles
+    if verifier == "" or similarity(msg, entry) <= 0.8: # date exists in other pages, but verifier should only be in articles
         return "ไม่พบข่าวนี้ในฐานข้อมูล"
     url = unquote(url)
     detail = date + verifier + "\n\nอ้างอิงจาก \"" + title + "\" อ่านรายละเอียดได้ที่ " + url
@@ -120,6 +122,24 @@ def removetags(raw_html):
     cleanr = cleanr = re.compile('<.*?>|&([a-z0-9]+|#[0-9]{1,6}|#x[0-9a-f]{1,6});')
     cleantext = re.sub(cleanr, '', raw_html)
     return cleantext
+
+def similarity(msg, html):
+    url = "https://api.aiforthai.in.th/tpos"
+    data = {'text':msg}
+    headers = {'Apikey': "KTgCpXIQS2uRt0L6l8ZY8Q83tRFbvwwH",}
+    response = requests.post(url, data=data, headers=headers)
+
+    tuples = list(zip(response.json()['words'], response.json()['tags']))
+
+    key_tags = ['NN', 'NR', 'CD', 'OD', 'FWN', 'ADV']
+    words = []
+    for (word,tag) in tuples:
+       if tag in key_tags:
+          words.append(word)
+
+    appear = sum(w in html for w in words)
+    appear_ratio = appear/len(words)
+    return appear_ratio
 
 if __name__ == '__main__':
     app.run(debug=True)
