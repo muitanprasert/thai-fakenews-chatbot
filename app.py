@@ -78,10 +78,11 @@ def event_handle(event):
 
 def evaluate(msg):
     # retrieve search results from google
-    results = search(msg + " antifakenewscenter.com", tld='com', num=5, pause=0.5)
+    results = search(msg + " antifakenewscenter.com", tld='com', num=10, pause=0.5)
     url = 0
+    blacklist = ["/report-form", "/tag", '/category', '/คำถามที่พบบ่อย', '/ถามตอบ', '/เข้าสู่ระบบ']
     for r in results:
-        if "antifakenewscenter.com" in r:
+        if "antifakenewscenter.com" in r and len(r) > 36 and sum(b in r for b in blacklist) == 0:
             url = r; break
     if url == 0:
         return "ไม่พบข่าวนี้ในฐานข้อมูล"
@@ -102,17 +103,21 @@ def evaluate(msg):
     if index > -1:
         chunk = entry[index:index+100]
         verifier = " โดย " + chunk[20:chunk.find('</')].strip()
-    
+
     # construct and return response message
-    if verifier == "" or similarity(msg, entry) <= 0.8: # date exists in other pages, but verifier should only be in articles
+    wcount, sim = similarity(msg, entry)
+    if verifier == "" or  (wcount > 3 and sim <= 0.8): # verifier is only found in report articles
         return "ไม่พบข่าวนี้ในฐานข้อมูล"
     url = unquote(url)
-    detail = date + verifier + "\n\nอ้างอิงจาก \"" + title + "\" อ่านรายละเอียดได้ที่ " + url
+    detail = "\"" + title + "\" ยืนยัน" + date + verifier + "\n\nอ่านรายละเอียดได้ที่ " + url
+    header = ""
+    if wcount <= 3:
+        header = "ระบบไม่สามารถจำแนกข่าวได้เนื่องจากคำค้นหาสั้นเกินไป นี่คือข่าวที่เกี่ยวข้องกับคำค้นหาของคุณมากที่สุด\n\n"
     if "เป็นข้อมูลเท็จ" in entry:
-        return "ข่าวนี้ได้รับการยืนยันว่าเป็นข่าวปลอม" + detail
+        return header + "ข่าวปลอม: " + detail
     if "เป็นข้อมูลบิดเบือน" in entry:
-        return "ข่าวนี้ได้การยืนยันแล้วว่าเป็นข่าวบิดเบือน" + detail
-    return "ข่าวนี้ได้รับการยืนยันแล้วว่าเป็นความจริง" + detail
+        return header + "ข่าวบิดเบือน: " + detail
+    return header + "ข่าวจริง: " + detail
 
 def get_raw(url):
     r = requests.get(url)
@@ -139,7 +144,7 @@ def similarity(msg, html):
 
     appear = sum(w in html for w in words)
     appear_ratio = appear/len(words)
-    return appear_ratio
+    return len(tuples), appear_ratio
 
 if __name__ == '__main__':
     app.run(debug=True)
