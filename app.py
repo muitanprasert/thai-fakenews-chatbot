@@ -9,6 +9,9 @@ import requests
 from googlesearch import search
 import re
 from urllib.parse import unquote
+from tqdm.auto import tqdm
+import torch
+from tensorflow import keras
 
 from linebot.models import (
     MessageEvent, TextMessage, TextSendMessage,TemplateSendMessage,ImageSendMessage, StickerSendMessage, AudioSendMessage
@@ -16,6 +19,19 @@ from linebot.models import (
 from linebot.models.template import *
 from linebot import (
     LineBotApi, WebhookHandler
+)
+
+#transformers
+from transformers import (
+    CamembertTokenizer,
+    AutoTokenizer,
+    AutoModel,
+    AutoModelForMaskedLM,
+    AutoModelForSequenceClassification,
+    AutoModelForTokenClassification,
+    TrainingArguments,
+    Trainer,
+    pipeline,
 )
 
 app = Flask(__name__)
@@ -85,14 +101,14 @@ def evaluate(msg):
         if "antifakenewscenter.com" in r and len(r) > 36 and sum(b in r for b in blacklist) == 0:
             url = r; break
     if url == 0:
-        return "ไม่พบข่าวนี้ในฐานข้อมูล"
+        return get_approximation(msg)
 
     # get title, date and verifying agency
     entry = get_raw(url)
     from_index = entry.find('<div class="title-post-news">')
     to_index = entry.find('<div class="tag-post-news">')
     if from_index == -1 or to_index == -1:
-        return "ไม่พบข่าวนี้ในฐานข้อมูล"
+        return get_approximation(msg)
     entry = entry[from_index:to_index]
     title = removetags(entry.split("\n")[1]).strip()
     date = ""; verifier = ""
@@ -107,12 +123,12 @@ def evaluate(msg):
     # construct and return response message
     wcount, sim = similarity(msg, entry)
     if verifier == "" or  (wcount > 3 and sim <= 0.8): # verifier is only found in report articles
-        return "ไม่พบข่าวนี้ในฐานข้อมูล"
+        return get_approximation(msg)
     url = unquote(url)
     detail = "\"" + title + "\" ยืนยัน" + date + verifier + "\n\nอ่านรายละเอียดได้ที่ " + url
     header = ""
     if wcount <= 3:
-        header = "ระบบไม่สามารถจำแนกข่าวได้เนื่องจากคำค้นหาสั้นเกินไป นี่คือข่าวที่เกี่ยวข้องกับคำค้นหาของคุณมากที่สุด\n\n"
+        header = "ระบบไม่สามารถระบุเนื้อข่าวอย่างแน่นอนได้เนื่องจากคำค้นหาสั้นเกินไป นี่คือข่าวที่เกี่ยวข้องกับคำค้นหาของคุณมากที่สุด\n\n"
     if "เป็นข้อมูลเท็จ" in entry:
         return header + "ข่าวปลอม: " + detail
     if "เป็นข้อมูลบิดเบือน" in entry:
@@ -145,6 +161,33 @@ def similarity(msg, html):
     appear = sum(w in html for w in words)
     appear_ratio = appear/len(words)
     return len(tuples), appear_ratio
+
+def extract_last_k(input_text, feature_extractor, last_k=4):
+    #create tokenizer & feature extractor
+    tokenizer = CamembertTokenizer.from_pretrained(
+                                    'airesearch/wangchanberta-base-att-spm-uncased',
+                                    revision='main')
+    tokenizer.additional_special_tokens = ['<s>NOTUSED', '</s>NOTUSED', '<_>']
+
+    feature_extractor = pipeline(task='feature-extraction',
+            tokenizer=tokenizer,
+            model = f'airesearch/wangchanberta-base-att-spm-uncased',
+            revision = 'main')
+
+    # get features from the last 4 layers
+    hidden_states = feature_extractor(input_text)[0]
+    last_k_layers = [hidden_states[i] for i in [-i for i in range(1,last_k+1)]]
+    cat_hidden_states = sum(last_k_layers, [])
+    return np.array(cat_hidden_states)
+
+def get_approximation(input):
+    inputX = extract_last_k(input[:415], feature_extractor, last_k=4)[None,:]
+    model = keras.models.load_model('/detector/base-model.h5', compile=False)
+    pred = model.predict(inputX)[0][0]*100
+    if pred >= 50:
+        return "ไม่พบข่าวนี้ในฐานข้อมูล แต่โมเดลปัญญาประดิษฐ์ของเราประเมินว่ามีโอกาส %d%% ที่ข่าวนี้จะเป็นความจริง" % pred)
+    else:
+        return "ไม่พบข่าวนี้ในฐานข้อมูล แต่โมเดลปัญญาประดิษฐ์ของเราประเมินว่ามีโอกาส %d%% ที่ข่าวนี้จะเป็นความเท็จ" % (100-pred)
 
 if __name__ == '__main__':
     app.run(debug=True)

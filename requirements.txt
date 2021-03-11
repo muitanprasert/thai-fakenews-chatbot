@@ -7,3 +7,4 @@ pandas==0.20.3
 googletrans
 beautifulsoup4
 google
+transformers==3.5.1
