@@ -9,3 +9,4 @@ beautifulsoup4
 google
 https://download.pytorch.org/whl/cpu/torch-1.5.0%2Bcpu-cp36-cp36m-linux_x86_64.whl
 transformers==3.5.0
+tensorflow-cpu
