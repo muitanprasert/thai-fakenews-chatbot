@@ -34,6 +34,17 @@ from transformers import (
     pipeline,
 )
 
+#create tokenizer & feature extractor
+tokenizer = CamembertTokenizer.from_pretrained(
+                                'airesearch/wangchanberta-base-att-spm-uncased',
+                                revision='main')
+tokenizer.additional_special_tokens = ['<s>NOTUSED', '</s>NOTUSED', '<_>']
+
+feature_extractor = pipeline(task='feature-extraction',
+        tokenizer=tokenizer,
+        model = f'airesearch/wangchanberta-base-att-spm-uncased',
+        revision = 'main')
+
 app = Flask(__name__)
 
 lineaccesstoken = '3POi0EbdigkQvu+n0ZmqdvTp/exfy6f63l17uohvB6UjI2pTpVERM55f9ZqUV142wqO7dPwo46jxK8v+0ixUQKOMpumyrbfa7T8POc7uNRyv+KE/VlWswBNSBkbsn8V513MUoVH44X4cDYMq5IxwWQdB04t89/1O/w1cDnyilFU='
@@ -162,30 +173,18 @@ def similarity(msg, html):
     appear_ratio = appear/len(words)
     return len(tuples), appear_ratio
 
-def extract_last_k(input_text, feature_extractor, last_k=4):
-    #create tokenizer & feature extractor
-    tokenizer = CamembertTokenizer.from_pretrained(
-                                    'airesearch/wangchanberta-base-att-spm-uncased',
-                                    revision='main')
-    tokenizer.additional_special_tokens = ['<s>NOTUSED', '</s>NOTUSED', '<_>']
-
-    feature_extractor = pipeline(task='feature-extraction',
-            tokenizer=tokenizer,
-            model = f'airesearch/wangchanberta-base-att-spm-uncased',
-            revision = 'main')
-
-    # get features from the last 4 layers
+def extract_last_k(input_text, last_k=4):
     hidden_states = feature_extractor(input_text)[0]
     last_k_layers = [hidden_states[i] for i in [-i for i in range(1,last_k+1)]]
     cat_hidden_states = sum(last_k_layers, [])
     return np.array(cat_hidden_states)
 
 def get_approximation(input):
-    inputX = extract_last_k(input[:415], feature_extractor, last_k=4)[None,:]
+    inputX = extract_last_k(input[:415], last_k=4)[None,:]
     model = keras.models.load_model('/detector/base-model.h5', compile=False)
     pred = model.predict(inputX)[0][0]*100
     if pred >= 50:
-        return "ไม่พบข่าวนี้ในฐานข้อมูล แต่โมเดลปัญญาประดิษฐ์ของเราประเมินว่ามีโอกาส %d%% ที่ข่าวนี้จะเป็นความจริง" % pred)
+        return "ไม่พบข่าวนี้ในฐานข้อมูล แต่โมเดลปัญญาประดิษฐ์ของเราประเมินว่ามีโอกาส %d%% ที่ข่าวนี้จะเป็นความจริง" % pred
     else:
         return "ไม่พบข่าวนี้ในฐานข้อมูล แต่โมเดลปัญญาประดิษฐ์ของเราประเมินว่ามีโอกาส %d%% ที่ข่าวนี้จะเป็นความเท็จ" % (100-pred)
 
