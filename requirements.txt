@@ -7,5 +7,5 @@ pandas==0.20.3
 googletrans
 beautifulsoup4
 google
-sentencepiece==0.1.91
-transformers==4.1.1
+https://download.pytorch.org/whl/cpu/torch-1.5.0%2Bcpu-cp36-cp36m-linux_x86_64.whl
+transformers==3.5.0
