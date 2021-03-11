@@ -7,4 +7,5 @@ pandas==0.20.3
 googletrans
 beautifulsoup4
 google
-transformers==3.5.0
+sentencepiece==0.1.91
+transformers==4.1.1
