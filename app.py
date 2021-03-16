@@ -10,9 +10,9 @@ from googlesearch import search
 import re
 from urllib.parse import unquote
 from tqdm.auto import tqdm
-import torch
 import pickle
 from sklearn.linear_model import LogisticRegression
+from sentence_transformers import SentenceTransformer
 
 from linebot.models import (
     MessageEvent, TextMessage, TextSendMessage,TemplateSendMessage,ImageSendMessage, StickerSendMessage, AudioSendMessage
@@ -27,17 +27,6 @@ from transformers import (
     CamembertTokenizer,
     pipeline,
 )
-
-#create tokenizer & feature extractor
-tokenizer = CamembertTokenizer.from_pretrained(
-                                'airesearch/wangchanberta-base-att-spm-uncased',
-                                revision='main')
-tokenizer.additional_special_tokens = ['<s>NOTUSED', '</s>NOTUSED', '<_>']
-
-feature_extractor = pipeline(task='feature-extraction',
-        tokenizer=tokenizer,
-        model = f'airesearch/wangchanberta-base-att-spm-uncased',
-        revision = 'main')
 
 app = Flask(__name__)
 
@@ -168,15 +157,30 @@ def similarity(msg, html):
     return len(tuples), appear_ratio
 
 def extract_last_k(input_text, last_k=4):
+    # create tokenizer & feature extractor
+    tokenizer = CamembertTokenizer.from_pretrained(
+                                    'airesearch/wangchanberta-base-att-spm-uncased',
+                                    revision='main')
+    tokenizer.additional_special_tokens = ['<s>NOTUSED', '</s>NOTUSED', '<_>']
+
+    feature_extractor = pipeline(task='feature-extraction',
+            tokenizer=tokenizer,
+            model = f'airesearch/wangchanberta-base-att-spm-uncased',
+            revision = 'main')
+
+    # get features from last 4 states    
     hidden_states = feature_extractor(input_text)[0]
     last_k_layers = [hidden_states[i] for i in [-i for i in range(1,last_k+1)]]
     cat_hidden_states = sum(last_k_layers, [])
     return np.array(cat_hidden_states)
 
 def get_approximation(input):
-    inputX = extract_last_k(input[:415], last_k=4)[None,:]
-    model = pickle.load(open('/detector/logist.sav', 'rb'))
-    pred = model.predict_proba(inputX)[0][0]*100
+    #inputX = extract_last_k(input[:415], last_k=4)[None,:]
+    model = SentenceTransformer('paraphrase-xlm-r-multilingual-v1')
+    inputX = model.encode(input)
+
+    model = pickle.load(open('/detector/logist_xlm.sav', 'rb'))
+    pred = 100-(model.predict_proba(inputX)[0][0]*100)
     if pred >= 50:
         return "ไม่พบข่าวนี้ในฐานข้อมูล แต่โมเดลปัญญาประดิษฐ์ของเราประเมินว่ามีโอกาส %d%% ที่ข่าวนี้จะเป็นความจริง" % pred
     else:
