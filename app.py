@@ -11,7 +11,7 @@ import re
 from urllib.parse import unquote
 from tqdm.auto import tqdm
 import torch
-from pickle
+import pickle
 from sklearn.linear_model import LogisticRegression
 
 from linebot.models import (
