@@ -11,7 +11,8 @@ import re
 from urllib.parse import unquote
 from tqdm.auto import tqdm
 import torch
-from tensorflow import keras
+from pickle
+from sklearn.linear_model import LogisticRegression
 
 from linebot.models import (
     MessageEvent, TextMessage, TextSendMessage,TemplateSendMessage,ImageSendMessage, StickerSendMessage, AudioSendMessage
@@ -24,13 +25,6 @@ from linebot import (
 #transformers
 from transformers import (
     CamembertTokenizer,
-    AutoTokenizer,
-    AutoModel,
-    AutoModelForMaskedLM,
-    AutoModelForSequenceClassification,
-    AutoModelForTokenClassification,
-    TrainingArguments,
-    Trainer,
     pipeline,
 )
 
@@ -181,8 +175,8 @@ def extract_last_k(input_text, last_k=4):
 
 def get_approximation(input):
     inputX = extract_last_k(input[:415], last_k=4)[None,:]
-    model = keras.models.load_model('/detector/base-model.h5', compile=False)
-    pred = model.predict(inputX)[0][0]*100
+    model = pickle.load(open('/detector/logist.sav', 'rb'))
+    pred = model.predict_proba(inputX)[0][0]*100
     if pred >= 50:
         return "ไม่พบข่าวนี้ในฐานข้อมูล แต่โมเดลปัญญาประดิษฐ์ของเราประเมินว่ามีโอกาส %d%% ที่ข่าวนี้จะเป็นความจริง" % pred
     else:
