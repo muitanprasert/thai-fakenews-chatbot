@@ -9,7 +9,6 @@ import requests
 from googlesearch import search
 import re
 from urllib.parse import unquote
-from tqdm.auto import tqdm
 
 from linebot.models import (
     MessageEvent, TextMessage, TextSendMessage,TemplateSendMessage,ImageSendMessage, StickerSendMessage, AudioSendMessage
@@ -152,6 +151,7 @@ def get_features(input_text, extractor):
 
     if extractor=='wangchanberta':
         # import transformers
+        from tqdm.auto import tqdm
         from transformers import CamembertTokenizer, pipeline
 
         # create tokenizer & feature extractor
