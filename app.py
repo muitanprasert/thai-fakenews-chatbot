@@ -150,7 +150,7 @@ def similarity(msg, html):
 def get_features(input_text, extractor):
     # REMINDER: uncomment dependencies in requirements.txt needed for the feature extractor
 
-    if extractor='wangchanberta':
+    if extractor=='wangchanberta':
         # import transformers
         from transformers import CamembertTokenizer, pipeline
 
