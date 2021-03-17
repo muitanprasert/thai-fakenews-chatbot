@@ -76,23 +76,28 @@ def event_handle(event):
         line_bot_api.reply_message(rtoken, replyObj)
     return ''
 
+# ------- RESPONSE: functions for constructing a response to the user's input ------- #
+
 def evaluate(msg):
     # retrieve search results from google
     results = search(msg + " antifakenewscenter.com", tld='com', num=10, pause=0.5)
-    url = 0
+    url = ""
+    other_url = ""
     blacklist = ["/report-form", "/tag", '/category', '/คำถามที่พบบ่อย', '/ถามตอบ', '/เข้าสู่ระบบ']
     for r in results:
-        if "antifakenewscenter.com" in r and len(r) > 36 and sum(b in r for b in blacklist) == 0:
-            url = r; break
-    if url == 0:
-        return get_approximation(msg)
+        if other_url=="" and "antifakenewscenter.com" not in r:    # keep url in another website just in case
+            other_url = r
+        if url=="" and "antifakenewscenter.com" in r and len(r) > 36 and sum(b in r for b in blacklist) == 0:
+            url = r
+    if url == "":
+        return get_approximation(msg, other_url)
 
     # get title, date and verifying agency
     entry = get_raw(url)
     from_index = entry.find('<div class="title-post-news">')
     to_index = entry.find('<div class="tag-post-news">')
-    if from_index == -1 or to_index == -1:
-        return get_approximation(msg)
+    if from_index == -1 or to_index == -1:   # just in case the html retrieved doesn't have expected fields
+        return get_approximation(msg, other_url)
     entry = entry[from_index:to_index]
     title = removetags(entry.split("\n")[1]).strip()
     date = ""; verifier = ""
@@ -106,13 +111,13 @@ def evaluate(msg):
 
     # construct and return response message
     wcount, sim = similarity(msg, entry)
-    if verifier == "" or  (wcount > 3 and sim <= 0.8): # verifier is only found in report articles
-        return get_approximation(msg)
+    if verifier == "" or  (wcount > 3 and sim <= 0.7):   # verifier is only found in report articles
+        return get_approximation(msg, other_url)
     url = unquote(url)
     detail = "\"" + title + "\" ยืนยัน" + date + verifier + "\n\nอ่านรายละเอียดได้ที่ " + url
     header = ""
     if wcount <= 3:
-        header = "ระบบไม่สามารถระบุเนื้อข่าวอย่างแน่นอนได้เนื่องจากคำค้นหาสั้นเกินไป นี่คือข่าวที่เกี่ยวข้องกับคำค้นหาของคุณมากที่สุด\n\n"
+        header = "เนื่องจากคำค้นหาสั้นเกินไป ระบบจะแสดงข่าวที่เกี่ยวข้องกับคำค้นหาของคุณมากที่สุด โปรดตรวจสอบความถูกต้องด้วยตนเองอีกครั้ง\n\n"
     if "เป็นข้อมูลเท็จ" in entry:
         return header + "ข่าวปลอม: " + detail
     if "เป็นข้อมูลบิดเบือน" in entry:
@@ -121,6 +126,7 @@ def evaluate(msg):
 
 def get_raw(url):
     r = requests.get(url)
+    r.encoding = r.apparent_encoding
     return r.text
 
 def removetags(raw_html):
@@ -129,23 +135,36 @@ def removetags(raw_html):
     return cleantext
 
 def similarity(msg, html):
-    url = "https://api.aiforthai.in.th/tpos"
-    data = {'text':msg}
-    headers = {'Apikey': "KTgCpXIQS2uRt0L6l8ZY8Q83tRFbvwwH",}
-    response = requests.post(url, data=data, headers=headers)
+    from pythainlp.tag import pos_tag
+    from pythainlp.tokenize import word_tokenize
 
-    tuples = list(zip(response.json()['words'], response.json()['tags']))
-
-    key_tags = ['NN', 'NR', 'CD', 'OD', 'FWN', 'ADV']
+    # tokenize and keep only words with "key" pos tags
+    tokens = word_tokenize(msg, engine='newmm-safe', keep_whitespace=False)
+    tuples = pos_tag(tokens, corpus='')
+    key_tags = ['N', 'VACT', 'VATT', 'XVBB', 'XVMM', 'DCNM', 'DONM', 'CMTR', 'JCMP', 'RPRE', 'PROPN']
     words = []
     for (word,tag) in tuples:
-       if tag in key_tags:
+       if tag in key_tags or len(tag)==0 or tag[0] in key_tags:
           words.append(word)
 
+    # count no. words that appear in the article
     appear = sum(w in html for w in words)
     appear_ratio = appear/len(words)
     return len(tuples), appear_ratio
 
+def get_approximation(msg, url):
+    if len(url) > 0:
+        html = get_raw(url)
+        wcount, sim = similarity(msg, html)
+        if sim > 0.6:
+            return "ไม่พบข่าวดังกล่าวในฐานข้อมูลที่ตรวจสอบแล้ว นี่คือบทความที่อาจเกี่ยวข้องกับคำค้นหาของคุณแต่ยังไม่ได้รับการตรวจสอบ: "+unquote(url)
+    return "ไม่พบข่าวดังกล่าวในฐานข้อมูล"
+
+if __name__ == '__main__':
+    app.run(debug=True)
+
+
+# ------- UNUSED: saved code for predictor models that exceed heroku memory limit ------- #
 def get_features(input_text, extractor):
     # REMINDER: uncomment dependencies in requirements.txt needed for the feature extractor
 
@@ -178,11 +197,7 @@ def get_features(input_text, extractor):
         model = SentenceTransformer('paraphrase-xlm-r-multilingual-v1')
         return model.encode(input)
 
-
-def get_approximation(input, extractor=None):
-    if extractor == None:
-        return "ไม่พบข่าวนี้ในฐานข้อมูล"
-
+def guess(input, extractor):
     import pickle
     from sklearn.linear_model import LogisticRegression
     inputX = get_features(input) 
@@ -192,6 +207,3 @@ def get_approximation(input, extractor=None):
         return "ไม่พบข่าวนี้ในฐานข้อมูล แต่โมเดลปัญญาประดิษฐ์ของเราประเมินว่ามีโอกาส %d%% ที่ข่าวนี้จะเป็นความจริง" % pred
     else:
         return "ไม่พบข่าวนี้ในฐานข้อมูล แต่โมเดลปัญญาประดิษฐ์ของเราประเมินว่ามีโอกาส %d%% ที่ข่าวนี้จะเป็นความเท็จ" % (100-pred)
-
-if __name__ == '__main__':
-    app.run(debug=True)
