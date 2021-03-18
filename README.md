@@ -7,8 +7,8 @@ A [Line](http://line.me/) chatbot that takes Thai news from users and attempts t
 The chatbot was written in Python and deployed through Heroku: [https://thai-fake-news.herokuapp.com](https://thai-fake-news.herokuapp.com/). You can find the QR code and Line ID to add our chatbot as a friend and try talking to it.
 
 Usage Examples:
-<img src="./templates/img1.png" width="45%"/> <img src="./templates/img2.png" width="45%"/>
-<img src="./templates/img3.png" width="45%"/> <img src="./templates/img4.png" width="45%"/>
+<img src="./templates/img1.PNG" width="45%"/> <img src="./templates/img2.PNG" width="45%"/>
+<img src="./templates/img3.PNG" width="45%"/> <img src="./templates/img4.PNG" width="45%"/>
 
 # What's Going On Inside
 
